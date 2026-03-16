@@ -12,34 +12,39 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id          Int    @id @default(autoincrement())
-  email       String @unique
-  password    String
-  isVerified  Boolean @default(false)
-
-  bids        Bid[]
-}
-
 model Artwork {
-  id          Int     @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   title       String
   description String
   imageUrl    String?
+  createdAt   DateTime @default(now())
 
   auction     Auction?
 }
 
 model Auction {
-  id            Int    @id @default(autoincrement())
-  artworkId     Int    @unique
-  basePrice     Float
-  currentBid    Float
-  minIncrement  Float
-  status        String
+  id               Int      @id @default(autoincrement())
+  artworkId        Int      @unique
 
-  artwork       Artwork @relation(fields: [artworkId], references: [id])
-  bids          Bid[]
+  startingPrice    Float
+  minimumIncrement Float
+
+  startTime        DateTime @default(now())
+  endTime          DateTime
+  status           AuctionStatus @default(SCHEDULED)
+
+  currentBidId     Int?
+  currentBid       Bid?     @relation("CurrentBid", fields: [currentBidId], references: [id])
+
+  artwork          Artwork  @relation(fields: [artworkId], references: [id])
+
+  bids             Bid[]
+}
+
+enum AuctionStatus {
+  SCHEDULED
+  ACTIVE
+  FINISHED
 }
 
 model Bid {
@@ -52,4 +57,13 @@ model Bid {
 
   user       User    @relation(fields: [userId], references: [id])
   auction    Auction @relation(fields: [auctionId], references: [id])
+}
+
+model User {
+  id          Int    @id @default(autoincrement())
+  email       String @unique
+  password    String
+  isVerified  Boolean @default(false)
+
+  bids        Bid[]
 }

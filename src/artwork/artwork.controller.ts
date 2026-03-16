@@ -1,9 +1,17 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { ArtworkService } from './artwork.service';
-import { CreateArtworkDto } from './dto/create-artwork.dto';
-import { UpdateArtworkDto } from './dto/update-artwork.dto';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from "@nestjs/common";
+import { ArtworkService } from "./artwork.service";
+import { CreateArtworkDto } from "./dto/create-artwork.dto";
+import { UpdateArtworkDto } from "./dto/update-artwork.dto";
 
-@Controller('artwork')
+@Controller("artwork")
 export class ArtworkController {
   constructor(private readonly artworkService: ArtworkService) {}
 
@@ -17,18 +25,18 @@ export class ArtworkController {
     return this.artworkService.findAll();
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
+  @Get(":id")
+  findOne(@Param("id") id: string) {
     return this.artworkService.findOne(+id);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateArtworkDto: UpdateArtworkDto) {
+  @Patch(":id")
+  update(@Param("id") id: string, @Body() updateArtworkDto: UpdateArtworkDto) {
     return this.artworkService.update(+id, updateArtworkDto);
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
+  @Delete(":id")
+  remove(@Param("id") id: string) {
     return this.artworkService.remove(+id);
   }
 }
