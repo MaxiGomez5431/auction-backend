@@ -1,26 +1,80 @@
-import { Injectable } from '@nestjs/common';
-import { CreateArtworkDto } from './dto/create-artwork.dto';
-import { UpdateArtworkDto } from './dto/update-artwork.dto';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { CreateArtworkDto } from "./dto/create-artwork.dto";
+import { UpdateArtworkDto } from "./dto/update-artwork.dto";
+import { PrismaService } from "src/prisma/prisma.service";
 
 @Injectable()
 export class ArtworkService {
+  constructor(private prisma: PrismaService) {}
+
   create(createArtworkDto: CreateArtworkDto) {
-    return 'This action adds a new artwork';
+    return this.prisma.artwork.create({
+      data: createArtworkDto,
+    });
   }
 
   findAll() {
-    return `This action returns all artwork`;
+    return this.prisma.artwork.findMany({
+      include: {
+        auction: true,
+      },
+    });
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} artwork`;
+  async findOne(id: number) {
+    const artwork = await this.prisma.artwork.findUnique({
+      where: { id },
+      include: {
+        auction: true,
+      },
+    });
+
+    if (!artwork) {
+      throw new NotFoundException("Artwork not found");
+    }
+
+    return artwork;
   }
 
-  update(id: number, updateArtworkDto: UpdateArtworkDto) {
-    return `This action updates a #${id} artwork`;
+  async update(id: number, updateArtworkDto: UpdateArtworkDto) {
+    const artwork = await this.prisma.artwork.findUnique({
+      where: { id },
+    });
+
+    if (!artwork) {
+      throw new NotFoundException("Artwork not found");
+    }
+
+    return this.prisma.artwork.update({
+      where: { id },
+      data: updateArtworkDto,
+    });
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} artwork`;
+  async remove(id: number) {
+    const artwork = await this.prisma.artwork.findUnique({
+      where: { id },
+      include: {
+        auction: true,
+      },
+    });
+
+    if (!artwork) {
+      throw new NotFoundException("Artwork not found");
+    }
+
+    if (artwork.auction) {
+      throw new BadRequestException(
+        "Cannot delete artwork because it has an auction associated",
+      );
+    }
+
+    return this.prisma.artwork.delete({
+      where: { id },
+    });
   }
 }
