@@ -5,6 +5,9 @@ import { ExtractJwt, Strategy } from "passport-jwt";
 interface JwtPayload {
   sub: string;
   email: string;
+  username: string;
+  isVerified: boolean;
+  isAdmin: boolean;
 }
 
 @Injectable()
@@ -12,14 +15,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor() {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      secretOrKey: "super_secret_key",
+      secretOrKey: process.env.JWT_SECRET || "default",
     });
   }
 
   validate(payload: JwtPayload) {
     return {
-      userId: payload.sub,
+      id: payload.sub,
       email: payload.email,
+      username: payload.username,
+      isVerified: payload.isVerified,
+      isAdmin: payload.isAdmin,
     };
   }
 }

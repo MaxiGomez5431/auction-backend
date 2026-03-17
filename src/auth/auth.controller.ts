@@ -1,9 +1,17 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from "@nestjs/common";
 import { Request } from "express";
 import { AuthService } from "./auth.service";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
-import { JwtGuard } from "./jwt/jwt.guard";
+import { AuthenticatedRequest, JwtGuard } from "./jwt/jwt.guard";
 
 @Controller("auth")
 export class AuthController {
@@ -20,14 +28,22 @@ export class AuthController {
   }
 
   @Get("verify-token")
-  @UseGuards(JwtGuard) // Protege la ruta con JWT
+  @UseGuards(JwtGuard)
   verifyToken(@Req() req: Request) {
-    // Si llegas aquí, el token es válido
     return {
       valid: true,
       message: "Valid token",
-      user: req.user, // Información del usuario del token
+      user: req.user,
       timestamp: new Date().toISOString(),
     };
+  }
+
+  @Post("admin/verify-user/:id")
+  @UseGuards(JwtGuard)
+  async verifyUser(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
+    return this.authService.verifyUserById(parseInt(id), {
+      id: parseInt(req.user.id),
+      isAdmin: req.user.isAdmin,
+    });
   }
 }

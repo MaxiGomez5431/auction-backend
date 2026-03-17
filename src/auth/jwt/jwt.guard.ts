@@ -1,4 +1,3 @@
-// auth/jwt/jwt.guard.ts
 import {
   CanActivate,
   ExecutionContext,
@@ -11,10 +10,20 @@ import { Request } from "express";
 interface JwtPayload {
   sub: string;
   email: string;
+  username: string | null;
+  isVerified: boolean;
+  isAdmin: boolean;
 }
 
-interface AuthenticatedRequest extends Request {
-  user?: { id: string; email: string };
+// 2. Actualizar la interfaz de la request autenticada
+export interface AuthenticatedRequest extends Request {
+  user: {
+    id: string;
+    email: string;
+    username: string | null;
+    isVerified: boolean;
+    isAdmin: boolean;
+  };
 }
 
 @Injectable()
@@ -48,6 +57,9 @@ export class JwtGuard implements CanActivate {
       request.user = {
         id: payload.sub,
         email: payload.email,
+        username: payload.username,
+        isVerified: payload.isVerified,
+        isAdmin: payload.isAdmin,
       };
 
       return true;
