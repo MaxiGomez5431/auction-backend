@@ -60,7 +60,7 @@ model Bid {
 
   user       User    @relation(fields: [userId], references: [id])
   auction    Auction @relation(fields: [auctionId], references: [id])
-
+  
   currentForAuction Auction? @relation("CurrentBid")
 
   @@index([auctionId, createdAt])
