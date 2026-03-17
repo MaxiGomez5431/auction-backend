@@ -26,14 +26,17 @@ model Auction {
   id               Int      @id @default(autoincrement())
   artworkId        Int      @unique
 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   startingPrice    Float
   minimumIncrement Float
 
-  startTime        DateTime @default(now())
+  startTime        DateTime
   endTime          DateTime
   status           AuctionStatus @default(SCHEDULED)
 
-  currentBidId     Int?
+  currentBidId     Int?     @unique
   currentBid       Bid?     @relation("CurrentBid", fields: [currentBidId], references: [id])
 
   artwork          Artwork  @relation(fields: [artworkId], references: [id])
@@ -57,10 +60,18 @@ model Bid {
 
   user       User    @relation(fields: [userId], references: [id])
   auction    Auction @relation(fields: [auctionId], references: [id])
+
+  currentForAuction Auction? @relation("CurrentBid")
+
+  @@index([auctionId, createdAt])
 }
 
 model User {
   id          Int    @id @default(autoincrement())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  username    String?
   email       String @unique
   password    String
   isVerified  Boolean @default(false)
