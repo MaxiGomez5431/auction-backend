@@ -22,7 +22,7 @@ export class AuthService {
     });
 
     if (existingUser) {
-      throw new UnauthorizedException("Email already exists");
+      throw new UnauthorizedException("El email ya está registrado");
     }
 
     return this.prisma.user.create({
@@ -40,13 +40,13 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException("Invalid credentials");
+      throw new UnauthorizedException("Credenciales inválidas");
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
-      throw new UnauthorizedException("Invalid credentials");
+      throw new UnauthorizedException("Credenciales inválidas");
     }
 
     const payload = {
@@ -59,11 +59,19 @@ export class AuthService {
 
     return {
       access_token: this.jwtService.sign(payload),
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        isVerified: user.isVerified,
+        isAdmin: user.isAdmin,
+      },
     };
   }
 
   async verifyUserById(
     userId: number,
+    isVerified: boolean,
     authenticatedUser: { id: number; isAdmin: boolean },
   ) {
     const user = await this.prisma.user.findUnique({
@@ -71,16 +79,18 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new NotFoundException(`User with ID ${userId} not found`);
+      throw new NotFoundException(`Usuario con ID ${userId} no encontrado`);
     }
 
     if (!authenticatedUser || !authenticatedUser.isAdmin) {
-      throw new UnauthorizedException("Only admins can verify users");
+      throw new UnauthorizedException(
+        "Solo los administradores pueden verificar usuarios",
+      );
     }
 
     const updatedUser = await this.prisma.user.update({
       where: { id: userId },
-      data: { isVerified: true },
+      data: { isVerified },
       select: {
         id: true,
         email: true,
@@ -92,8 +102,52 @@ export class AuthService {
     });
 
     return {
-      message: "User verified successfully",
+      message: isVerified
+        ? "Usuario verificado exitosamente"
+        : "Usuario desverificado exitosamente",
       user: updatedUser,
     };
+  }
+
+  async getAllUsers(requestingUser: { id: number; isAdmin: boolean }) {
+    if (!requestingUser || !requestingUser.isAdmin) {
+      throw new UnauthorizedException(
+        "Solo los administradores pueden ver todos los usuarios",
+      );
+    }
+
+    return this.prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        isVerified: true,
+        isAdmin: true,
+        username: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  async deleteUserById(
+    userId: number,
+    authenticatedUser: { id: number; isAdmin: boolean },
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`Usuario con ID ${userId} no encontrado`);
+    }
+
+    if (!authenticatedUser || !authenticatedUser.isAdmin) {
+      throw new UnauthorizedException(
+        "Solo los administradores pueden eliminar usuarios",
+      );
+    }
+
+    return this.prisma.user.delete({
+      where: { id: userId },
+    });
   }
 }

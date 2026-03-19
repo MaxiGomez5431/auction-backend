@@ -6,18 +6,29 @@ import {
   Patch,
   Param,
   Delete,
+  UseGuards,
+  Req,
 } from "@nestjs/common";
 import { ArtworkService } from "./artwork.service";
 import { CreateArtworkDto } from "./dto/create-artwork.dto";
 import { UpdateArtworkDto } from "./dto/update-artwork.dto";
+import { AuthenticatedRequest, JwtGuard } from "src/auth/jwt/jwt.guard";
 
 @Controller("artwork")
 export class ArtworkController {
   constructor(private readonly artworkService: ArtworkService) {}
 
   @Post()
-  create(@Body() createArtworkDto: CreateArtworkDto) {
-    return this.artworkService.create(createArtworkDto);
+  @UseGuards(JwtGuard)
+  create(
+    @Body() createArtworkDto: CreateArtworkDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.artworkService.create(createArtworkDto, {
+      id: req.user.id,
+      isVerified: req.user.isVerified,
+      isAdmin: req.user.isAdmin,
+    });
   }
 
   @Get()
@@ -36,7 +47,11 @@ export class ArtworkController {
   }
 
   @Delete(":id")
-  remove(@Param("id") id: string) {
-    return this.artworkService.remove(+id);
+  @UseGuards(JwtGuard)
+  remove(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
+    return this.artworkService.remove(+id, {
+      id: req.user.id,
+      isAdmin: req.user.isAdmin,
+    });
   }
 }

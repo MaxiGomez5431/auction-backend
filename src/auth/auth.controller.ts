@@ -1,8 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -38,11 +40,33 @@ export class AuthController {
     };
   }
 
-  @Post("admin/verify-user/:id")
+  @Patch("admin/verify-user/:id")
   @UseGuards(JwtGuard)
-  async verifyUser(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
-    return this.authService.verifyUserById(parseInt(id), {
-      id: parseInt(req.user.id),
+  async verifyUser(
+    @Param("id") id: string,
+    @Body("isVerified") isVerified: boolean,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.authService.verifyUserById(parseInt(id), isVerified, {
+      id: req.user.id,
+      isAdmin: req.user.isAdmin,
+    });
+  }
+
+  @Get("user")
+  @UseGuards(JwtGuard)
+  getUser(@Req() req: AuthenticatedRequest) {
+    return this.authService.getAllUsers({
+      id: req.user.id,
+      isAdmin: req.user.isAdmin,
+    });
+  }
+
+  @Delete("user/:id")
+  @UseGuards(JwtGuard)
+  deleteUser(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
+    return this.authService.deleteUserById(parseInt(id), {
+      id: req.user.id,
       isAdmin: req.user.isAdmin,
     });
   }

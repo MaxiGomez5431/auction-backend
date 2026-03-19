@@ -11,7 +11,16 @@ import { PrismaService } from "src/prisma/prisma.service";
 export class ArtworkService {
   constructor(private prisma: PrismaService) {}
 
-  create(createArtworkDto: CreateArtworkDto) {
+  create(
+    createArtworkDto: CreateArtworkDto,
+    user: { id: number; isVerified: boolean; isAdmin: boolean },
+  ) {
+    if (!user.isAdmin) {
+      throw new BadRequestException(
+        "El usuario no es administrador y no puede crear una obra de arte",
+      );
+    }
+
     return this.prisma.artwork.create({
       data: createArtworkDto,
     });
@@ -34,7 +43,7 @@ export class ArtworkService {
     });
 
     if (!artwork) {
-      throw new NotFoundException("Artwork not found");
+      throw new NotFoundException("Obra no encontrada");
     }
 
     return artwork;
@@ -46,7 +55,7 @@ export class ArtworkService {
     });
 
     if (!artwork) {
-      throw new NotFoundException("Artwork not found");
+      throw new NotFoundException("Obra no encontrada");
     }
 
     return this.prisma.artwork.update({
@@ -55,7 +64,13 @@ export class ArtworkService {
     });
   }
 
-  async remove(id: number) {
+  async remove(id: number, user: { id: number; isAdmin: boolean }) {
+    if (!user.isAdmin) {
+      throw new BadRequestException(
+        "El usuario no es administrador y no puede eliminar una obra de arte",
+      );
+    }
+
     const artwork = await this.prisma.artwork.findUnique({
       where: { id },
       include: {
@@ -64,12 +79,12 @@ export class ArtworkService {
     });
 
     if (!artwork) {
-      throw new NotFoundException("Artwork not found");
+      throw new NotFoundException("Obra no encontrada");
     }
 
     if (artwork.auction) {
       throw new BadRequestException(
-        "Cannot delete artwork because it has an auction associated",
+        "No se puede eliminar la obra de arte porque tiene una subasta asociada",
       );
     }
 

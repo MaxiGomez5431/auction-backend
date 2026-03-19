@@ -6,18 +6,29 @@ import {
   Patch,
   Param,
   Delete,
+  UseGuards,
+  Req,
 } from "@nestjs/common";
 import { AuctionService } from "./auction.service";
 import { CreateAuctionDto } from "./dto/create-auction.dto";
 import { UpdateAuctionDto } from "./dto/update-auction.dto";
+import { AuthenticatedRequest, JwtGuard } from "src/auth/jwt/jwt.guard";
 
 @Controller("auction")
 export class AuctionController {
   constructor(private readonly auctionService: AuctionService) {}
 
   @Post()
-  create(@Body() createAuctionDto: CreateAuctionDto) {
-    return this.auctionService.create(createAuctionDto);
+  @UseGuards(JwtGuard)
+  create(
+    @Body() createAuctionDto: CreateAuctionDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.auctionService.create(createAuctionDto, {
+      id: req.user.id,
+      isVerified: req.user.isVerified,
+      isAdmin: req.user.isAdmin,
+    });
   }
 
   @Get()
@@ -36,12 +47,20 @@ export class AuctionController {
   }
 
   @Delete(":id")
-  remove(@Param("id") id: string) {
-    return this.auctionService.remove(+id);
+  @UseGuards(JwtGuard)
+  remove(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
+    return this.auctionService.remove(+id, {
+      id: req.user.id,
+      isAdmin: req.user.isAdmin,
+    });
   }
 
   @Patch(":id/finish")
-  finish(@Param("id") id: string) {
-    return this.auctionService.finish(+id);
+  @UseGuards(JwtGuard)
+  finish(@Param("id") id: string, @Req() req: AuthenticatedRequest) {
+    return this.auctionService.finish(+id, {
+      id: req.user.id,
+      isAdmin: req.user.isAdmin,
+    });
   }
 }

@@ -18,7 +18,7 @@ interface JwtPayload {
 // 2. Actualizar la interfaz de la request autenticada
 export interface AuthenticatedRequest extends Request {
   user: {
-    id: string;
+    id: number;
     email: string;
     username: string | null;
     isVerified: boolean;
@@ -38,14 +38,14 @@ export class JwtGuard implements CanActivate {
 
     // 2. Verificar que existe el header
     if (!authHeader) {
-      throw new UnauthorizedException("No authentication token provided");
+      throw new UnauthorizedException("No proveyó token de autenticación");
     }
 
     // 3. Verificar el formato (debe ser "Bearer token")
     const [type, token] = authHeader.split(" ");
     if (type !== "Bearer" || !token) {
       throw new UnauthorizedException(
-        "Invalid token format. Use: Bearer <token>",
+        "Formato de token inválido. Use: Bearer <token>",
       );
     }
 
@@ -55,7 +55,7 @@ export class JwtGuard implements CanActivate {
 
       // 5. Adjuntar el usuario al request para usarlo después
       request.user = {
-        id: payload.sub,
+        id: parseInt(payload.sub),
         email: payload.email,
         username: payload.username,
         isVerified: payload.isVerified,
@@ -66,12 +66,12 @@ export class JwtGuard implements CanActivate {
     } catch (error: any) {
       // 6. Manejar diferentes tipos de error
       if (error instanceof Error && error.name === "TokenExpiredError") {
-        throw new UnauthorizedException("Expired token");
+        throw new UnauthorizedException("Token expirado");
       }
       if (error instanceof Error && error.name === "JsonWebTokenError") {
-        throw new UnauthorizedException("Invalid token");
+        throw new UnauthorizedException("Token no valido");
       }
-      throw new UnauthorizedException("Error verifying token");
+      throw new UnauthorizedException("Error al verificar el token");
     }
   }
 }

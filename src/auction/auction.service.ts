@@ -12,9 +12,18 @@ import { AuctionStatus } from "@prisma/client";
 export class AuctionService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createAuctionDto: CreateAuctionDto) {
+  async create(
+    createAuctionDto: CreateAuctionDto,
+    user: { id: number; isVerified: boolean; isAdmin: boolean },
+  ) {
     const { artworkId, startingPrice, minimumIncrement, startTime, endTime } =
       createAuctionDto;
+
+    if (!user.isAdmin) {
+      throw new BadRequestException(
+        "El usuario no es administrador y no puede crear una subasta",
+      );
+    }
 
     // 1. Validar artwork existente
     const artwork = await this.prisma.artwork.findUnique({
@@ -22,7 +31,7 @@ export class AuctionService {
     });
 
     if (!artwork) {
-      throw new NotFoundException("Artwork not found");
+      throw new NotFoundException("Obra no encontrada");
     }
 
     // 2. Validar que no tenga ya una subasta
@@ -31,7 +40,7 @@ export class AuctionService {
     });
 
     if (existingAuction) {
-      throw new BadRequestException("This artwork already has an auction");
+      throw new BadRequestException("Esta obra ya tiene una subasta");
     }
 
     // 3. Validar fechas
@@ -39,7 +48,9 @@ export class AuctionService {
     const end = new Date(endTime);
 
     if (end <= start) {
-      throw new BadRequestException("End time must be after start time");
+      throw new BadRequestException(
+        "La hora de finalización debe ser posterior a la hora de inicio",
+      );
     }
 
     // 4. Determinar estado inicial
@@ -116,6 +127,7 @@ export class AuctionService {
       include: {
         artwork: true,
         currentBid: true,
+        bids: true,
       },
     });
 
@@ -128,31 +140,15 @@ export class AuctionService {
       include: {
         artwork: true,
         currentBid: true,
+        bids: true,
       },
     });
 
     if (!auction) {
-      throw new NotFoundException("Auction not found");
+      throw new NotFoundException("Subasta no encontrada");
     }
 
     return this.syncAuctionStatus(auction);
-  }
-
-  async finishAuction(id: number) {
-    const auction = await this.prisma.auction.findUnique({
-      where: { id },
-    });
-
-    if (!auction) {
-      throw new NotFoundException("Auction not found");
-    }
-
-    return this.prisma.auction.update({
-      where: { id },
-      data: {
-        status: AuctionStatus.FINISHED,
-      },
-    });
   }
 
   async update(id: number, updateAuctionDto: UpdateAuctionDto) {
@@ -162,11 +158,13 @@ export class AuctionService {
     });
 
     if (!auction) {
-      throw new NotFoundException("Auction not found");
+      throw new NotFoundException("Subasta no encontrada");
     }
 
     if (auction.status === "FINISHED") {
-      throw new BadRequestException("Cannot update a finished auction");
+      throw new BadRequestException(
+        "No se puede actualizar una subasta finalizada",
+      );
     }
 
     const { artworkId, startTime, endTime } = updateAuctionDto;
@@ -176,7 +174,9 @@ export class AuctionService {
       const end = endTime ? new Date(endTime) : auction.endTime;
 
       if (end <= start) {
-        throw new BadRequestException("End time must be after start time");
+        throw new BadRequestException(
+          "La hora de finalización debe ser posterior a la hora de inicio",
+        );
       }
     }
 
@@ -186,7 +186,7 @@ export class AuctionService {
       });
 
       if (!artwork) {
-        throw new NotFoundException("Artwork not found");
+        throw new NotFoundException("Obra no encontrada");
       }
 
       const existingAuction = await this.prisma.auction.findUnique({
@@ -194,7 +194,7 @@ export class AuctionService {
       });
 
       if (existingAuction) {
-        throw new BadRequestException("This artwork already has an auction");
+        throw new BadRequestException("Esta obra ya tiene una subasta");
       }
     }
 
@@ -212,36 +212,54 @@ export class AuctionService {
     });
   }
 
-  async remove(id: number) {
+  async remove(id: number, user: { id: number; isAdmin: boolean }) {
+    if (!user.isAdmin) {
+      throw new BadRequestException(
+        "El usuario no es administrador y no puede eliminar una subasta",
+      );
+    }
+
     const auction = await this.prisma.auction.findUnique({
       where: { id },
       include: { bids: true },
     });
 
     if (!auction) {
-      throw new NotFoundException("Auction not found");
+      throw new NotFoundException("Subasta no encontrada");
     }
 
-    if (auction.bids.length > 0) {
-      throw new BadRequestException("Cannot delete auction with existing bids");
-    }
+    return this.prisma.$transaction(async (prisma) => {
+      // 1. Eliminar todas las ofertas relacionadas
+      await prisma.bid.deleteMany({
+        where: { auctionId: id },
+      });
 
-    return this.prisma.auction.delete({
-      where: { id },
+      // 2. Eliminar la subasta
+      const deletedAuction = await prisma.auction.delete({
+        where: { id },
+      });
+
+      return deletedAuction;
     });
   }
 
-  async finish(id: number) {
+  async finish(id: number, user: { id: number; isAdmin: boolean }) {
+    if (!user.isAdmin) {
+      throw new BadRequestException(
+        "El usuario no es administrador y no puede finalizar una subasta",
+      );
+    }
+
     const auction = await this.prisma.auction.findUnique({
       where: { id },
     });
 
     if (!auction) {
-      throw new NotFoundException("Auction not found");
+      throw new NotFoundException("Subasta no encontrada");
     }
 
     if (auction.status === AuctionStatus.FINISHED) {
-      throw new BadRequestException("Auction is already finished");
+      throw new BadRequestException("La subasta ya está finalizada");
     }
 
     return this.prisma.auction.update({

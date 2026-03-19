@@ -25,12 +25,14 @@ export class BidService {
   async create(createBidDto: CreateBidDto, req: AuthenticatedRequest) {
     // 1. Verifies that the user is authenticated
     if (!req.user) {
-      throw new UnauthorizedException("User not authenticated");
+      throw new UnauthorizedException("Usuario no autenticado");
     }
 
     // 2. Verifies that the user is verified
     if (!req.user.isVerified) {
-      throw new ForbiddenException("User not verified. You cannot place bids.");
+      throw new ForbiddenException(
+        "Usuario no verificado. No puede realizar ofertas.",
+      );
     }
 
     // 3. Buscar la subasta incluyendo la oferta actual (si existe)
@@ -45,14 +47,14 @@ export class BidService {
     // 4. Verificar que la subasta existe
     if (!auction) {
       throw new NotFoundException(
-        `Auction with ID ${createBidDto.auctionId} not found`,
+        `Subasta con ID ${createBidDto.auctionId} no encontrada`,
       );
     }
 
     // 5. Verificar que la subasta está activa
     if (auction.status !== "ACTIVE") {
       throw new BadRequestException(
-        `The auction is not active. Current status: ${auction.status}`,
+        `La subasta no está activa. Estado actual: ${auction.status}`,
       );
     }
 
@@ -67,8 +69,8 @@ export class BidService {
     // 9. Verificar que el monto de la oferta supera el mínimo requerido
     if (createBidDto.amount < minimumAllowedAmount) {
       throw new BadRequestException(
-        `The bid amount must be at least ${minimumAllowedAmount} ` +
-          `(current bid: ${currentHighestBid} + minimum increment: ${minIncrement})`,
+        `La puja debe ser al menos ${minimumAllowedAmount} ` +
+          `(puja actual: ${currentHighestBid} + incremento mínimo: ${minIncrement})`,
       );
     }
 
@@ -100,7 +102,7 @@ export class BidService {
     // 12. Devolver la oferta creada con información adicional
     return {
       success: true,
-      message: "Bid placed successfully",
+      message: "Puja realizada exitosamente",
       bid: {
         id: result.newBid.id,
         amount: result.newBid.amount,
@@ -116,9 +118,5 @@ export class BidService {
         currentBidId: result.updatedAuction.currentBidId,
       },
     };
-  }
-
-  findAll() {
-    return `This action returns all bid`;
   }
 }
