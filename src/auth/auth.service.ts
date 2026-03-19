@@ -132,6 +132,7 @@ export class AuthService {
     userId: number,
     authenticatedUser: { id: number; isAdmin: boolean },
   ) {
+    // Verificaciones de seguridad
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
@@ -140,14 +141,77 @@ export class AuthService {
       throw new NotFoundException(`Usuario con ID ${userId} no encontrado`);
     }
 
+    if (user.id === authenticatedUser.id) {
+      throw new UnauthorizedException("No puedes eliminar tu propia cuenta");
+    }
+
     if (!authenticatedUser || !authenticatedUser.isAdmin) {
       throw new UnauthorizedException(
         "Solo los administradores pueden eliminar usuarios",
       );
     }
 
-    return this.prisma.user.delete({
-      where: { id: userId },
+    // Usar una transacción para manejar todo atómicamente
+    return this.prisma.$transaction(async (prisma) => {
+      // 1. Encontrar todas las subastas donde este usuario tiene la currentBid
+      const auctionsWithUserAsCurrentBid = await prisma.auction.findMany({
+        where: {
+          currentBid: {
+            userId: userId,
+          },
+        },
+        include: {
+          bids: {
+            where: {
+              userId: {
+                not: userId, // Excluir las bids del usuario a eliminar
+              },
+            },
+            orderBy: {
+              amount: "desc",
+            },
+            take: 1, // Solo la más alta de los otros usuarios
+          },
+        },
+      });
+
+      // 2. Actualizar cada subasta afectada
+      for (const auction of auctionsWithUserAsCurrentBid) {
+        if (auction.bids.length > 0) {
+          // Hay otra bid, actualizar currentBid a la siguiente más alta
+          const nextHighestBid = auction.bids[0];
+          await prisma.auction.update({
+            where: { id: auction.id },
+            data: {
+              currentBidId: nextHighestBid.id,
+            },
+          });
+        } else {
+          // No hay otras bids, establecer currentBid a null
+          await prisma.auction.update({
+            where: { id: auction.id },
+            data: {
+              currentBidId: null,
+            },
+          });
+        }
+      }
+
+      // 3. Eliminar todas las bids del usuario
+      await prisma.bid.deleteMany({
+        where: { userId: userId },
+      });
+
+      // 4. Finalmente, eliminar el usuario
+      const deletedUser = await prisma.user.delete({
+        where: { id: userId },
+      });
+
+      return {
+        message: "Usuario eliminado correctamente",
+        user: deletedUser,
+        updatedAuctions: auctionsWithUserAsCurrentBid.length,
+      };
     });
   }
 }
